@@ -1,0 +1,13 @@
+const EXAMPLE: &str = "\
+";
+
+const ANSWER: &str = "\
+";
+
+pub fn part_one(input: &str) -> Result<String, String> {
+    crate::runner::unimplemented(input)
+}
+
+pub fn part_two(input: &str) -> Result<String, String> {
+    crate::runner::unimplemented(input)
+}
