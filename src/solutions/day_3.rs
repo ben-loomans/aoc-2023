@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 /*
 this solution is quite a bit more involved than it needs to be, 
 I just wanted to explore solving the problem without allocating.
@@ -31,7 +33,7 @@ impl<'a> Schematic<'a> {
         }
     }
 
-    fn is_part_num(&self, part_num: &PartNum) -> bool {
+    fn is_part_num(&self, part_num: &Num) -> bool {
         let (x, y) = self.idx_to_xy(part_num.idx).expect("part num idx always good");
 
         for j in (y - 1)..=(y + 1) { 
@@ -44,6 +46,8 @@ impl<'a> Schematic<'a> {
 
         return false;
     }
+
+
 
     fn idx_to_xy(&self, idx: usize) -> Option<(i32, i32)> {
         if idx >= self.text.len() {
@@ -86,32 +90,59 @@ impl<'a> Schematic<'a> {
         return Some(idx);
     }
 
-    fn part_num_to_usize(&self, part_num: &PartNum) -> usize {
+    fn part_num_to_usize(&self, part_num: &Num) -> usize {
         let num_str = &self.text[part_num.idx..part_num.idx + part_num.len];
         num_str.parse().expect("this conversion should always work")
     }
+
+    // part 2
+
+    fn is_gear(&self, x: i32, y: i32) -> bool {
+        if let Some(idx) = self.xy_to_idx(x, y) {
+            return self.text.as_bytes()[idx] == b'*';
+        }
+
+        return false;
+    }
+
+    fn find_gears(&self, part_num: &Num) -> Vec<usize> {
+        let mut gears = Vec::new();
+
+        let (x, y) = self.idx_to_xy(part_num.idx).expect("part num idx always good");
+
+        for j in (y - 1)..=(y + 1) { 
+            for i in (x - 1)..=(x + (part_num.len as i32)) { 
+                if self.is_gear(i, j) {
+                    let gear = self.xy_to_idx(i, j).expect("Conversion shouldn't fail");
+                    gears.push(gear);
+                }
+            }
+        }
+
+        gears
+    }
 }
 
-struct PartIter<'a> {
+struct NumIter<'a> {
     schematic: &'a Schematic<'a>,
     idx: usize,
 }
 
 impl<'a> IntoIterator for &'a Schematic<'a> {
-    type Item = PartNum;
+    type Item = Num;
 
-    type IntoIter = PartIter<'a>;
+    type IntoIter = NumIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        PartIter {
+        NumIter {
             schematic: self,
             idx: 0,
         }
     }
 }
 
-impl<'a> Iterator for PartIter<'a> {
-    type Item = PartNum;
+impl<'a> Iterator for NumIter<'a> {
+    type Item = Num;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.idx >= self.schematic.text.len() {
@@ -131,7 +162,7 @@ impl<'a> Iterator for PartIter<'a> {
 
         self.idx = end_idx + 1;     // next search should start from the next unchecked char
 
-        let part_num = PartNum {
+        let part_num = Num {
             idx: start_idx, 
             len: end_idx - start_idx,
         };
@@ -140,13 +171,71 @@ impl<'a> Iterator for PartIter<'a> {
     }
 }
 
-struct PartNum {
+struct Num {
     idx: usize,
     len: usize,
 }
 
+/*
+For part two I'm not going to worry about not allocating. 
+I think parsing the input to a set of '*'s and a set of numbers might be a good start
+Then, scan the surrounds of each number to find a gear and save the gear-number pair.
+
+*/
+
 pub fn part_two(input: &str) -> Result<String, String> {
-    Err("Unimplemented".to_string())
+    let schematic = Schematic::new(input);
+    let gear_list = GearList::from_schematic(&schematic);
+    let sum = gear_list.sum();
+        
+    Ok(sum.to_string())
+}
+
+struct GearList(BTreeMap<usize, Vec<usize>>);
+
+impl GearList {
+    fn new() -> Self {
+        Self(
+            BTreeMap::new()
+        )
+    }
+
+    fn from_schematic(schematic: &Schematic) -> Self {
+        let mut gear_list = GearList::new();
+
+        schematic.into_iter()
+            .map(|num| {
+                let part_num = schematic.part_num_to_usize(&num);
+                let gears = schematic.find_gears(&num);
+                
+                gears.into_iter()
+                    .map(move |gear| {
+                        (gear, part_num)
+                    })
+            }).flatten()
+            .for_each(|(gear, num)| {
+                gear_list.insert(gear, num);
+            });
+
+        gear_list
+    }
+
+    fn insert(&mut self, gear_idx: usize, num: usize) {
+        self.0.entry(gear_idx)
+        .or_insert(Vec::new())
+        .push(num);
+    }
+
+    fn sum(&self) -> usize {
+        self.0.values()
+            .filter_map(|nums| {
+                if nums.len() != 2 {
+                    return None;
+                }
+
+                Some(nums[0] * nums[1])
+            }).sum()
+    }
 }
 
 const _EXAMPLE: &str = "\
@@ -162,6 +251,7 @@ const _EXAMPLE: &str = "\
 .664.598..";
 
 const _ANSWER: &str = "4361";
+const _ANSWER_2: &str = "467835";
 
 #[test]
 fn test_part_one() {
@@ -170,7 +260,7 @@ fn test_part_one() {
 
 #[test]
 fn test_part_two() {
-    // assert_eq!(_ANSWER, &part_two(_EXAMPLE).unwrap());
+    assert_eq!(_ANSWER_2, &part_two(_EXAMPLE).unwrap());
 }
 
 #[test]
