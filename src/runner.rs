@@ -12,6 +12,8 @@ pub fn dispatch(day: u8, part: u8) -> &'static dyn Solved {
         (3, 2) => &day_3::part_two,
         (4, 1) => &day_4::part_one,
         (4, 2) => &day_4::part_two,
+        (5, 1) => &day_5::part_one,
+        (5, 2) => &day_5::part_two,
         _ => &unimplemented
     }
 }
