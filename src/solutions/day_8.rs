@@ -105,6 +105,12 @@ In  the example, both "ghosts" get into cycles within the first few steps.
 One cycle has a period of 2, and the other 3.
 Whether you re-enter a previously encountered cycle will have everything to do with both which node you are at and where the instructions are up to.
 
+There are some assumptions that we need to make in order to create an efficient solution. 
+1. No two "ghosts" get stuck in the same cycle at some offset.
+2. No ghosts get stuck in a Z-less cycle
+
+
+Consider the instruction index and node together. If we encounter the same combination twice, we're in a loop. We need to keep track of the overall index (how many times we've moved from node to node) in order to track cycle start time (how long until we enter a cycle) and cycle period. We also need to keep track of all the times we find a Z within a cycle
 */
 
 pub fn part_two(input: &str) -> Result<String, String> {
