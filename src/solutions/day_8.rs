@@ -1,6 +1,6 @@
-use std::{collections::{HashMap, HashSet}, hash::Hash};
+use std::collections::HashMap;
 
-use nom::{branch::alt, bytes::complete::{tag, take_until, take_while_m_n}, character::{char, complete::newline}, combinator::map, multi::{count, fold_many0, many1, many_m_n, many_till}, sequence::{delimited, separated_pair, terminated}, IResult, Parser};
+use nom::{branch::alt, bytes::complete::{tag, take_while_m_n}, character::complete::newline, combinator::map, multi::{fold_many0, many1}, sequence::{delimited, separated_pair, terminated}, IResult, Parser};
 
 pub fn part_one(input: &str) -> Result<String, String> {
     let (_, (instructions, node_tree)) = parse_input(input)
@@ -35,12 +35,8 @@ fn parse_rl(input: &str) -> IResult<&str, Vec<bool>> {
     ).parse(input)
 }
 
-fn is_uppercase(c: char) -> bool {
-    c.is_ascii_uppercase()
-}
-
 fn node_ident(input: &str) -> IResult<&str, &str> {
-    take_while_m_n(3, 3, is_uppercase)(input)
+    take_while_m_n(3, 3, char::is_alphanumeric)(input)
 }
 
 fn parse_node<'a>(input: &'a str) -> IResult<&'a str, Node<'a>> {
@@ -103,8 +99,57 @@ impl<'a> Node<'a> {
     }
 }
 
+/*
+I think a solution to this problem is going to have to do with periodicity.
+In  the example, both "ghosts" get into cycles within the first few steps.
+One cycle has a period of 2, and the other 3.
+Whether you re-enter a previously encountered cycle will have everything to do with both which node you are at and where the instructions are up to.
+
+*/
+
 pub fn part_two(input: &str) -> Result<String, String> {
-    Err("Unimplemented".to_string())
+    let (_, (instructions, node_tree)) = parse_input(input)
+        .map_err(|e| e.to_string())?;
+
+    let mut ghosts = nodes_ending_with(&node_tree, 'A');
+    //println!("{ghosts:?}");
+    let mut counter = 0;
+
+    let mut rl_iter = instructions.into_iter().cycle();
+
+    while !all_z(&ghosts) {
+        counter += 1;
+        let next_instr = rl_iter.next().unwrap();
+        ghosts.iter_mut()
+            .for_each(|node_name| {
+                *node_name = node_tree.get(node_name)
+                .unwrap()
+                .next(next_instr);
+            });
+    }
+    
+    Ok(counter.to_string())
+}
+
+fn all_z(node_names: &[&str]) -> bool {
+    node_names.iter()
+        .all(|name| name.ends_with('Z'))
+}
+
+fn nodes_ending_with<'a>(
+    nodes: &HashMap<&'a str, Node<'a>>,
+    ending: char,
+) -> Vec<&'a str> {
+    nodes
+        .values()
+        .filter_map(|node| {
+            if node.name.ends_with(ending) {
+                Some(node.name)
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 const _EXAMPLE: &str = "\
@@ -115,6 +160,21 @@ BBB = (AAA, ZZZ)
 ZZZ = (ZZZ, ZZZ)";
 
 const _ANSWER: &str = "6";
+
+const _EXAMPLE_2: &str = "\
+LR
+
+11A = (11B, XXX)
+11B = (XXX, 11Z)
+11Z = (11B, XXX)
+22A = (22B, XXX)
+22B = (22C, 22C)
+22C = (22Z, 22Z)
+22Z = (22B, 22B)
+XXX = (XXX, XXX)";
+
+const _ANSWER_2: &str = "6";
+
 #[test]
 fn test_part_one() {
     assert_eq!(_ANSWER, &part_one(_EXAMPLE).unwrap());
@@ -122,5 +182,5 @@ fn test_part_one() {
 
 #[test]
 fn test_part_two() {
-    // assert_eq!(_ANSWER, &part_two(_EXAMPLE).unwrap());
+    assert_eq!(_ANSWER_2, &part_two(_EXAMPLE_2).unwrap());
 }
